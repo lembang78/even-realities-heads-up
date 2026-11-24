@@ -1,0 +1,24 @@
+/* Heads-Up Markets — phone-side companion view only.
+   The glasses render the app through the Even Hub SDK text container
+   (576x288, monochrome green). This CSS styles the small status panel
+   shown in the phone WebView while the app runs. */
+html, body {
+  margin: 0;
+  height: 100%;
+  background: #232323;
+  color: #e5e5e5;
+  font: 14px/1.4 -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+  touch-action: manipulation;
+  -webkit-text-size-adjust: 100%;
+  overscroll-behavior: none;
+}
+#app {
+  display: flex;
+  height: 100%;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  box-sizing: border-box;
+  text-align: center;
+}
+#app small { display: block; margin-top: 8px; color: #9a9a9a; }
