@@ -1,7 +1,7 @@
 // Heads-Up Markets — Even G2 app entry point.
 // One full-screen text container (576x288) on the glasses; the DOM below is
 // only the phone-side companion view. All market data comes from the local
-// proxy (server.js) — the app never calls CoinGecko / Polymarket directly,
+// proxy (server.js) — the app never calls Hyperliquid / Polymarket directly,
 // never holds API keys, and never touches real money (paper credits only).
 import {
   waitForEvenAppBridge,
@@ -12,7 +12,7 @@ import {
 } from '@evenrealities/even_hub_sdk'
 import {
   COINS,
-  parsePrices,
+  parseHyperliquidPrices,
   parseMarkets,
   nextScreen,
   prevScreen,
@@ -86,7 +86,7 @@ async function refresh(): Promise<void> {
       fetch(`${PROXY}/api/prices`),
       fetch(`${PROXY}/api/markets`),
     ])
-    if (pRes.ok) prices = parsePrices(await pRes.json())
+    if (pRes.ok) prices = parseHyperliquidPrices(await pRes.json())
     if (mRes.ok) markets = parseMarkets(await mRes.json())
     updatedAt = Date.now()
     // Alerts are checked on every poll, only while the app is open.

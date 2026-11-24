@@ -79,19 +79,32 @@ export function trunc(s: string, n: number): string {
 
 // ---------- API response parsing ----------
 
-/** CoinGecko /simple/price shape: { bitcoin: { usd, usd_24h_change }, ... } */
-export function parsePrices(json: unknown): PriceRow[] {
-  if (!json || typeof json !== 'object') return []
+/**
+ * Hyperliquid `metaAndAssetCtxs` shape: [meta, ctxs] where
+ * meta.universe[i].name is the coin symbol (BTC/ETH/SOL) and ctxs[i] holds
+ * markPx (current mark price) and prevDayPx (mark price 24h ago).
+ * 24h change is computed from those two: (markPx - prevDayPx) / prevDayPx.
+ * Hyperliquid is on the official Crypto & DeFi track list; the proxy
+ * relays this response verbatim, so the app parses the raw shape here.
+ */
+export function parseHyperliquidPrices(json: unknown): PriceRow[] {
+  if (!Array.isArray(json) || json.length < 2) return []
+  const [meta, ctxs] = json as [Record<string, unknown>, unknown[]]
+  const universe = (meta as Record<string, unknown>)?.universe
+  if (!Array.isArray(universe) || !Array.isArray(ctxs)) return []
   const out: PriceRow[] = []
   for (const c of COINS) {
-    const row = (json as Record<string, unknown>)[c.id]
-    if (row && typeof row === 'object') {
-      const usd = Number((row as Record<string, unknown>).usd)
-      const ch = Number((row as Record<string, unknown>).usd_24h_change)
-      if (Number.isFinite(usd)) {
-        out.push({ id: c.id, symbol: c.symbol, usd, change24h: Number.isFinite(ch) ? ch : 0 })
-      }
-    }
+    const idx = universe.findIndex(
+      (a) => (a as Record<string, unknown>)?.name === c.symbol,
+    )
+    if (idx < 0) continue
+    const ctx = ctxs[idx] as Record<string, unknown> | undefined
+    if (!ctx) continue
+    const usd = Number(ctx.markPx)
+    const prev = Number(ctx.prevDayPx)
+    if (!Number.isFinite(usd) || usd <= 0) continue
+    const change24h = Number.isFinite(prev) && prev > 0 ? ((usd - prev) / prev) * 100 : 0
+    out.push({ id: c.id, symbol: c.symbol, usd, change24h })
   }
   return out
 }
@@ -191,7 +204,7 @@ export function checkAlert(alert: PriceAlert | null, price: number): PriceAlert 
 export function renderPrices(prices: PriceRow[], featured: CoinId, updatedAt: number | null): string {
   const lines = ['PRICES  1/3   swipe: screen, tap: coin']
   if (prices.length === 0) {
-    lines.push('', 'Loading prices...', 'CoinGecko via local proxy.')
+    lines.push('', 'Loading prices...', 'Hyperliquid via local proxy.')
   } else {
     for (const p of prices) {
       const mark = p.id === featured ? '>' : ' '

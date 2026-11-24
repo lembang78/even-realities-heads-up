@@ -12,7 +12,7 @@ green canvas.
 
 | Screen | Shows | Tap does |
 |---|---|---|
-| 1. Prices | BTC / ETH / SOL live price + 24h change (CoinGecko, public API, no key) | Cycle the featured coin |
+| 1. Prices | BTC / ETH / SOL live price + 24h change (Hyperliquid, public API, no key) | Cycle the featured coin |
 | 2. Markets | Top 3 Polymarket markets by 24h volume, live YES/NO odds | Place a **10-credit PAPER bet on YES** of market #1 |
 | 3. Alerts | Price alert for the featured coin | Cycle: +5% → −5% → off |
 
@@ -31,11 +31,11 @@ G2 glasses (576x288 text container, SDK bridge)
    ↕ Even Hub SDK (@evenrealities/even_hub_sdk 0.0.10)
 Phone WebView (Vite app: index.html + src/main.ts + src/logic.ts)
    ↕ fetch, whitelisted in app.json
-Local proxy (server.js, zero deps) ──► CoinGecko public API
+Local proxy (server.js, zero deps) ──► Hyperliquid public API (info: metaAndAssetCtxs)
                                     └─► Polymarket Gamma public API
 ```
 
-The WebView never calls CoinGecko or Polymarket directly: the proxy adds the
+The WebView never calls Hyperliquid or Polymarket directly: the proxy adds the
 CORS headers the WebView needs, and `app.json` whitelists only the proxy
 origin (`http://localhost:3000`). No API keys exist anywhere in this repo.
 
@@ -46,7 +46,7 @@ Prerequisites: Node.js 22.13+ (tested on 24.22.1).
 ```bash
 npm install
 
-# Terminal 1 — proxy (CoinGecko + Polymarket, adds CORS headers)
+# Terminal 1 — proxy (Hyperliquid + Polymarket, adds CORS headers)
 npm run proxy        # http://localhost:3000, /api/prices, /api/markets, /health
 
 # Terminal 2 — Vite dev server
@@ -75,8 +75,11 @@ scaffold (Vite config, `index.html` shell, `app.json` shape, SDK hello-world
 `main.ts`) — every line of app logic (`src/logic.ts`, `src/main.ts`,
 `server.js`, screens, paper betting, alerts) was written for this entry,
 23–25 Nov 2026. Open-source libraries used: `@evenrealities/even_hub_sdk`,
-Vite, TypeScript. Public APIs used: CoinGecko, Polymarket Gamma (both
-keyless, read-only).
+Vite, TypeScript. Public APIs used: Hyperliquid, Polymarket Gamma (both
+keyless, read-only). Hyperliquid is on the hackathon's official Crypto &
+DeFi track list; the price source was switched from CoinGecko to Hyperliquid
+on 25 Nov 2026 after the official DoraHacks page was re-checked, because
+CoinGecko is not on that list.
 
 ## Files
 
@@ -86,7 +89,7 @@ keyless, read-only).
 | `src/main.ts` | SDK bridge: container, events, polling, persistence |
 | `src/logic.ts` | Pure logic: formatting, parsing, paper bets, alerts, screens |
 | `src/style.css` | Companion-view styles (glasses UI is the SDK text container) |
-| `server.js` | Zero-dep proxy: CoinGecko + Polymarket, adds CORS, serves `dist/` |
+| `server.js` | Zero-dep proxy: Hyperliquid + Polymarket, adds CORS, serves `dist/` |
 | `app.json` | Even Hub manifest; network whitelist = proxy origin only |
 | `tests/logic.test.js` | Unit tests for `src/logic.ts` |
 | `SUBMISSION_NOTES.md` | Track, judging-criteria mapping, money-safety statement |

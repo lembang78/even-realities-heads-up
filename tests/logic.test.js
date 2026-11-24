@@ -3,7 +3,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import {
-  fmtUsd, fmtPct, trunc, parsePrices, parseMarkets,
+  fmtUsd, fmtPct, trunc, parseHyperliquidPrices, parseMarkets,
   nextScreen, prevScreen, newWallet, placePaperBet, openBetsValue,
   alertTarget, cycleAlert, checkAlert,
   renderPrices, renderMarkets, renderAlerts,
@@ -20,17 +20,33 @@ test('fmtPct signs positive values', () => {
   assert.equal(fmtPct(3), '+3.0%')
 })
 
-test('parsePrices reads the CoinGecko shape', () => {
-  const rows = parsePrices({
-    bitcoin: { usd: 59930, usd_24h_change: -2.22 },
-    ethereum: { usd: 1681.89, usd_24h_change: -3.16 },
-    solana: { usd: 69.49, usd_24h_change: -5.22 },
-  })
+test('parseHyperliquidPrices reads the metaAndAssetCtxs shape', () => {
+  // Fixture mirrors the real Hyperliquid response (verified live 25 Nov):
+  // [meta, ctxs], universe[i].name is the symbol, ctxs[i] has markPx/prevDayPx.
+  // BTC 59845 vs prev 61359 -> -2.47%; ETH 1678.2 vs 1739.2 -> -3.51%;
+  // SOL 69.319 vs 73.179 -> -5.28%. Filler assets prove index alignment.
+  const fixture = [
+    { universe: [{ name: 'HYPE' }, { name: 'BTC' }, { name: 'ETH' }, { name: 'SOL' }, { name: 'XRP' }] },
+    [
+      { markPx: '1.5', prevDayPx: '1.4' },
+      { markPx: '59845.0', prevDayPx: '61359.0' },
+      { markPx: '1678.2', prevDayPx: '1739.2' },
+      { markPx: '69.319', prevDayPx: '73.179' },
+      { markPx: '2.1', prevDayPx: '2.0' },
+    ],
+  ]
+  const rows = parseHyperliquidPrices(fixture)
   assert.equal(rows.length, 3)
   assert.equal(rows[0].symbol, 'BTC')
-  assert.equal(rows[2].usd, 69.49)
-  assert.deepEqual(parsePrices(null), [])
-  assert.deepEqual(parsePrices({ bitcoin: { usd: 'nope' } }), [])
+  assert.equal(rows[0].usd, 59845)
+  assert.ok(Math.abs(rows[0].change24h - -2.47) < 0.01, `BTC change ${rows[0].change24h}`)
+  assert.ok(Math.abs(rows[1].change24h - -3.51) < 0.01, `ETH change ${rows[1].change24h}`)
+  assert.ok(Math.abs(rows[2].change24h - -5.28) < 0.01, `SOL change ${rows[2].change24h}`)
+  // Bad shapes return nothing, never throw.
+  assert.deepEqual(parseHyperliquidPrices(null), [])
+  assert.deepEqual(parseHyperliquidPrices({}), [])
+  assert.deepEqual(parseHyperliquidPrices([{ universe: [] }, []]), [])
+  assert.deepEqual(parseHyperliquidPrices([{ universe: [{ name: 'BTC' }] }, [{ markPx: 'nope', prevDayPx: '1' }]]), [])
 })
 
 test('parseMarkets reads the Polymarket Gamma shape, sorts by volume, caps at 3', () => {

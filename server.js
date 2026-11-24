@@ -1,8 +1,11 @@
 // Heads-Up Markets — local proxy server (zero dependencies, Node 20+).
 // The G2 WebView may only call whitelisted origins and needs CORS headers,
-// so the app talks ONLY to this server. This server calls CoinGecko and
+// so the app talks ONLY to this server. This server calls Hyperliquid and
 // Polymarket server-side and adds `Access-Control-Allow-Origin: *`.
 // No API keys anywhere: both upstream APIs are public and keyless.
+// Hyperliquid is on the hackathon's official Crypto & DeFi track list
+// (https://dorahacks.io/hackathon/even-realities/detail); CoinGecko is not,
+// so prices come from Hyperliquid's public info endpoint, never CoinGecko.
 // Serves the built app (dist/) too, so `node server.js` alone is enough
 // for a local preview; the Vite dev server is only needed for hot reload.
 import http from 'node:http'
@@ -22,8 +25,8 @@ const MIME = {
   '.svg': 'image/svg+xml',
 }
 
-const COINGECKO_URL =
-  'https://api.coingecko.com/api/v3/simple/price?ids=bitcoin,ethereum,solana&vs_currencies=usd&include_24hr_change=true'
+const HYPERLIQUID_URL = 'https://api.hyperliquid.xyz/info'
+const HYPERLIQUID_BODY = JSON.stringify({ type: 'metaAndAssetCtxs' })
 const POLYMARKET_URL =
   'https://gamma-api.polymarket.com/markets?limit=10&active=true&order=volume24hr&ascending=false'
 
@@ -43,6 +46,27 @@ async function proxyJson(url, res) {
   }
 }
 
+/** POST a JSON body upstream and relay the JSON response (Hyperliquid info). */
+async function proxyPostJson(url, body, res) {
+  try {
+    const upstream = await fetch(url, {
+      method: 'POST',
+      headers: { accept: 'application/json', 'content-type': 'application/json' },
+      body,
+    })
+    const text = await upstream.text()
+    res.writeHead(upstream.status, {
+      'content-type': 'application/json',
+      'access-control-allow-origin': '*',
+      'cache-control': 'no-store',
+    })
+    res.end(text)
+  } catch (err) {
+    res.writeHead(502, { 'content-type': 'application/json', 'access-control-allow-origin': '*' })
+    res.end(JSON.stringify({ error: 'upstream unavailable', detail: String(err) }))
+  }
+}
+
 const server = http.createServer(async (req, res) => {
   if (req.method === 'OPTIONS') {
     res.writeHead(204, {
@@ -54,7 +78,7 @@ const server = http.createServer(async (req, res) => {
     return res.end()
   }
   const url = new URL(req.url ?? '/', `http://localhost:${PORT}`)
-  if (url.pathname === '/api/prices') return proxyJson(COINGECKO_URL, res)
+  if (url.pathname === '/api/prices') return proxyPostJson(HYPERLIQUID_URL, HYPERLIQUID_BODY, res)
   if (url.pathname === '/api/markets') return proxyJson(POLYMARKET_URL, res)
   if (url.pathname === '/health') {
     res.writeHead(200, { 'content-type': 'application/json' })
@@ -74,6 +98,6 @@ const server = http.createServer(async (req, res) => {
 
 server.listen(PORT, () => {
   console.log(`Heads-Up Markets proxy on http://localhost:${PORT}`)
-  console.log(`  GET /api/prices   -> CoinGecko (BTC/ETH/SOL)`)
+  console.log(`  GET /api/prices   -> Hyperliquid metaAndAssetCtxs (BTC/ETH/SOL markPx)`)
   console.log(`  GET /api/markets  -> Polymarket Gamma (top 10 by 24h volume)`)
 })
